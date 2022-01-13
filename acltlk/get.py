@@ -1,14 +1,15 @@
 import argparse
 import logging
+from contextlib import suppress
 
-from ldap3.protocol.formatters.formatters import format_sid
+from ldap3.protocol.formatters.formatters import format_sid, format_uuid_le
 from ldap3.protocol.microsoft import security_descriptor_control
+from impacket.ldap.ldaptypes import SR_SECURITY_DESCRIPTOR, LDAP_SID, ACE
 
-from acltlk.ldap import LDAPConnection, LDAPEntry
+from acltlk.ldap import LDAPConnection, LDAPEntry, SecurityInformation, DEFAULT_CONTROL_FLAGS
 from acltlk.target import Target
-
-from acltlk.constants import ACTIVE_DIRECTORY_RIGHTS, ACCESS_CONTROL_TYPE, EXTENDED_RIGHTS_MAP, EXTENDED_RIGHTS_NAME_MAP
-
+from acltlk.formatting import pretty_print
+from acltlk.constants import ACTIVE_DIRECTORY_RIGHTS, WELL_KNOWN_SIDS, EXTENDED_RIGHTS_MAP
 
 class Get:
     def __init__(self, options: argparse.Namespace):
@@ -17,11 +18,14 @@ class Get:
         self.target = Target(options)
         self._domain = None
         self._user = None
+        self._primary_group = None
         self._user_sids = None
         self._groups = None
         self._sid_map = {}
 
         self.ldap_connection = None
+
+        self._security_descriptor = None
 
     def connect(self):
         self.ldap_connection = LDAPConnection(self.target)
@@ -33,7 +37,85 @@ class Get:
     def run(self):
         self.connect()
 
+        output = dict()
+
+        user_info = dict()
+        user_info["Sid"] = format_sid(self.user.get_raw("objectSid"))
+        user_info["Name"] = self.sid_lookup(user_info["Sid"])
+        user_info["DN"] = self.user.get("distinguishedName")
+        
+
+        primary_group_info = dict()
+        primary_group_info["Sid"] = format_sid(self.primary_group.get_raw("objectSid"))
+        primary_group_info["Name"] = self.sid_lookup(primary_group_info["Sid"])
+        primary_group_info["DN"] = self.primary_group.get("distinguishedName")
+        
+        user_info["PrimaryGroup"] = primary_group_info
+
+        groups = list()
+
+        for group in self.groups:
+            group_output = dict()
+            group_output["Sid"] = format_sid(group.get_raw("objectSid"))
+            group_output["Name"] = self.sid_lookup(group_output["Sid"])
+            group_output["DN"] = group.get("distinguishedName")
+
+            groups.append(group_output)
+
+        user_info["Groups"] = groups
+
+        owner_info = dict()
+        owner_info["Sid"] = self.security_descriptor["OwnerSid"].formatCanonical()
+        owner_info["Name"] = self.sid_lookup(owner_info["Sid"])
+
+        user_info["Owner"] = owner_info
+
+        ownergroup_info = dict()
+        ownergroup_info["Sid"] = self.security_descriptor["GroupSid"].formatCanonical()
+        ownergroup_info["Name"] = self.sid_lookup(ownergroup_info["Sid"])
+
+        user_info["OwnerGroup"] = ownergroup_info
+
+        dacl = list()
+        for ace in self.security_descriptor['Dacl'].aces:
+            ace_output = dict()
+            ace_output['ObjectSid'] = ace['Ace']['Sid'].formatCanonical()
+            ace_output['Name'] = self.sid_lookup(ace['Ace']['Sid'].formatCanonical())
+            ace_output['AceType'] = ace['TypeName']
+            ace_output['AccessMask'] = ace['Ace']['Mask']['Mask']
+            ace_output['ADRights'] = self.ace_access_mask_lookup(ace['Ace']['Mask']['Mask'])
+            ace_output['IsInherited'] = bool(ace['AceFlags'] & 0x10)
+            try:
+                ace_output['ObjectAceType'] = format_uuid_le(ace['Ace']['ObjectType']) if ace['Ace']['ObjectType'] else '{00000000-0000-0000-0000-000000000000}'
+                ace_output['ObjectAceType'] = EXTENDED_RIGHTS_MAP[ace_output['ObjectAceType']]
+            except KeyError:
+                pass
+            dacl.append(ace_output)
+
+        user_info['Dacl'] = dacl
+
+        output["User"] = user_info
+
+        pretty_print(output)
+
+    def ace_access_mask_lookup(self, value) -> list :
+        try:
+            int_value = int(value)
+        except ValueError:
+            return value
+        
+        adrights = list()
+        for flag, flag_item in ACTIVE_DIRECTORY_RIGHTS.items():
+            if (int_value & flag) == flag:
+                adrights.append(flag_item)
+                int_value ^= flag
+
+        return adrights
+
     def sid_lookup(self, sid: str) -> str:
+        if sid in WELL_KNOWN_SIDS:
+            return WELL_KNOWN_SIDS[sid]
+    
         results = self.search(
             "(&(objectSid=%s)(|(objectClass=group)(objectClass=user)))" % sid,
             attributes=["name", "objectSid"],
@@ -44,7 +126,7 @@ class Get:
         
         result = results[0]
 
-        self._sid_map[sid] = "%s\\%s" % (self.domain.get("name"),result.get("name"))
+        self._sid_map[sid] = '%s\%s' % (self.domain.get("name"),result.get("name"))
         return self._sid_map[sid]
     
     @property
@@ -55,7 +137,7 @@ class Get:
         domains = self.search(
             "(&(objectClass=domain)(distinguishedName=%s))"
             % self.ldap_connection.root_name_path,
-            attributes=["name"],
+            attributes=["name","objectSid"],
         )
         if len(domains) == 0:
             logging.debug(
@@ -66,7 +148,7 @@ class Get:
             domains = self.search(
                 "(&(objectClass=domain)(distinguishedName=%s))"
                 % self.ldap_connection.default_path,
-                attributes=["name"],
+                attributes=["name","objectSid"],
             )
 
             if len(domains) == 0:
@@ -75,7 +157,6 @@ class Get:
                     % (self.ldap_connection.root_name_path,
                     self.ldap_connection.default_path)
                 )
-
         self._domain = domains[0]
 
         return self._domain
@@ -90,9 +171,24 @@ class Get:
         else:
             username = self.target.username
 
+        controls = [
+            *security_descriptor_control(
+                sdflags=(
+                    (
+                        SecurityInformation.OWNER_SECURITY_INFORMATION
+                        | SecurityInformation.GROUP_SECURITY_INFORMATION
+                        | SecurityInformation.DACL_SECURITY_INFORMATION
+                        | SecurityInformation.UNPROTECTED_DACL_SECURITY_INFORMATION
+                    ).value
+                )
+            ),
+            *DEFAULT_CONTROL_FLAGS,
+        ]
+
         users = self.search(
             "(&(objectclass=user)(sAMAccountName=%s))" % username,
-            attributes=["objectSid", "distinguishedName"],
+            attributes=["objectSid", "distinguishedName", "nTSecurityDescriptor", "primaryGroupId"],
+            controls=controls
         )
 
         if len(users) == 0:
@@ -106,13 +202,21 @@ class Get:
     def groups(self) -> 'list["LDAPEntry"]':
         if self._groups is not None:
             return self._groups
-
         self._groups = self.search(
             "(member:1.2.840.113556.1.4.1941:=%s)" % self.user.get("distinguishedName"),
-            attributes="objectSid",
+            attributes=["objectSid","name","distinguishedName"],
         )
-
         return self._groups
+
+    @property
+    def primary_group(self) -> 'list["LDAPEntry"]':
+        if self._primary_group is not None:
+            return self._primary_group
+
+        primary_group = self.search('(objectSid=%s-%s)' % (format_sid(self.domain.get_raw("objectSid")), self.user.get("primaryGroupID")), attributes=["objectSid","name", "distinguishedName"])  
+        self._primary_group = primary_group[0]
+
+        return self._primary_group
 
     @property
     def user_sids(self) -> 'list[str]':
@@ -129,6 +233,15 @@ class Get:
 
         return self._user_sids
 
+    @property
+    def security_descriptor(self) -> SR_SECURITY_DESCRIPTOR:
+        if self._security_descriptor is not None:
+            return self._security_descriptor
+
+        self._security_descriptor = SR_SECURITY_DESCRIPTOR()
+        self._security_descriptor.fromString(self.user.get_raw("nTSecurityDescriptor"))
+
+        return self.security_descriptor
 
 def get(options: argparse.Namespace):
     g = Get(options)
