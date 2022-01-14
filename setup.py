@@ -2,12 +2,12 @@ from importlib.metadata import entry_points
 from setuptools import setup
 
 setup(
-    name="acltlk",
+    name="acltoolkit",
     version="0.0.1",
     author="zblurx",
-    url="https://github.com/zblurx/acltlk",
+    url="https://github.com/zblurx/acltoolkit",
     long_description="README.md",
-    packages=["acltlk"],
+    packages=["acltoolkit"],
     install_requires=[
         "asn1crypto",
         "pycryptodome",
@@ -17,6 +17,6 @@ setup(
         "dnspython",
     ],
     entry_points={
-        "console_scripts":["acltlk=acltlk.entry:main"],
+        "console_scripts":["acltoolkit=acltoolkit.entry:main"],
     },
 )

@@ -1,11 +1,12 @@
 import logging
 from typing import Any
 from enum import IntFlag
+import ldap3
 
 from impacket.ldap import ldap, ldapasn1
 from impacket.ldap.ldapasn1 import Control
 
-from acltlk.target import Target
+from acltoolkit.target import Target
 
 
 
@@ -47,11 +48,12 @@ class LDAPEntry:
         return "<LDAPEntry (%s)>" % repr(self.attributes)
 
 class LDAPConnection:
-    def __init__(self, target: Target):
+    def __init__(self, scheme: str, target: Target):
         self.target = target
         self._conn = None
         self._root_name_path = None
         self._default_path = None
+        self.scheme = scheme
 
     def connect(self):
         target = self.target
@@ -59,7 +61,7 @@ class LDAPConnection:
         logging.debug("Connecting to LDAP at %s (%s)" % (repr(target.remote_name), target.dc_ip))
 
         connection = ldap.LDAPConnection(
-            "ldaps://%s" % target.remote_name,
+            "%s://%s" % (self.scheme, target.remote_name),
             "",
             target.dc_ip
         )
@@ -125,6 +127,9 @@ class LDAPConnection:
         )
 
         return entries
+    def write(
+
+    ):
     
     def _set_root_dse(self) -> None:
         dses = self.search(

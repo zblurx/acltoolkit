@@ -1,17 +1,16 @@
 import argparse
 import logging
-from contextlib import suppress
 
 from ldap3.protocol.formatters.formatters import format_sid, format_uuid_le
 from ldap3.protocol.microsoft import security_descriptor_control
-from impacket.ldap.ldaptypes import SR_SECURITY_DESCRIPTOR, LDAP_SID, ACE
+from impacket.ldap.ldaptypes import SR_SECURITY_DESCRIPTOR
 
-from acltlk.ldap import LDAPConnection, LDAPEntry, SecurityInformation, DEFAULT_CONTROL_FLAGS
-from acltlk.target import Target
-from acltlk.formatting import pretty_print
-from acltlk.constants import ACTIVE_DIRECTORY_RIGHTS, WELL_KNOWN_SIDS, EXTENDED_RIGHTS_MAP
+from acltoolkit.ldap import LDAPConnection, LDAPEntry, SecurityInformation, DEFAULT_CONTROL_FLAGS
+from acltoolkit.target import Target
+from acltoolkit.formatting import pretty_print
+from acltoolkit.constants import ACTIVE_DIRECTORY_RIGHTS, WELL_KNOWN_SIDS, EXTENDED_RIGHTS_MAP
 
-class Get:
+class GetObjectAcl:
     def __init__(self, options: argparse.Namespace):
         self.options = options
 
@@ -28,7 +27,7 @@ class Get:
         self._security_descriptor = None
 
     def connect(self):
-        self.ldap_connection = LDAPConnection(self.target)
+        self.ldap_connection = LDAPConnection(self.options.scheme, self.target)
         self.ldap_connection.connect()
 
     def search(self, *args, **kwargs) -> 'list["LDAPEntry"]':
@@ -243,6 +242,6 @@ class Get:
 
         return self.security_descriptor
 
-def get(options: argparse.Namespace):
-    g = Get(options)
+def get_objectacl(options: argparse.Namespace):
+    g = GetObjectAcl(options)
     g.run()

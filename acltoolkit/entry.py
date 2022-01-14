@@ -3,7 +3,8 @@ import logging
 
 from impacket.examples import logger
 
-from acltlk.get import get
+from acltoolkit.get_objectacl import get_objectacl
+from acltoolkit.set_objectowner import set_objectowner
 
 def main():
     logger.init()
@@ -48,17 +49,46 @@ def main():
         ),
     )
 
+    parser.add_argument(
+        "-scheme",
+        action="store",
+        metavar="ldap scheme",
+        choices=["ldap", "ldaps"],
+        default="ldaps",
+    )
+
     subparsers = parser.add_subparsers(help="Action", dest="action", required=True)
 
-    get_parser = subparsers.add_parser("get", help="Get Object ACL")
+    get_objectacl_parser = subparsers.add_parser("get-objectacl", help="Get Object ACL")
 
-    get_parser.add_argument(
+    get_objectacl_parser.add_argument(
         "-user",
         action="store",
         metavar="user",
         help=(
             "Dump ACL for <user>"
         ),
+    )
+
+    set_objectowner_parser = subparsers.add_parser("set-objectowner", help="Modify Object Owner")
+
+    set_objectowner_parser.add_argument(
+        "-target-sid",
+        action="store",
+        metavar="target_sid",
+        help=(
+            "Object Sid targeted"
+        ),
+        required=True
+    )
+
+    set_objectowner_parser.add_argument(
+        "-owner-sid",
+        action="store",
+        metavar="owner_sid",
+        help=(
+            "New Owner Sid"
+        )
     )
 
     options = parser.parse_args()
@@ -68,8 +98,10 @@ def main():
     else:
         logging.getLogger().setLevel(logging.INFO)
 
-    if options.action == "get":
-        get(options)
+    if options.action == "get-objectacl":
+        get_objectacl(options)
+    elif options.action == "set-objectowner":
+        set_objectowner(options)
     else:
         raise NotExistingActionError("Action not implemented: %s" % options.action)
 
