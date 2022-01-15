@@ -33,6 +33,7 @@ class Target:
         self.remote_name = remote_name
         self.lmhash = lmhash
         self.nthash = nthash
+        self.ntlmhash = "%s:%s" % (lmhash,nthash)
         self.do_kerberos = options.k
         self.dc_ip = options.dc_ip
 

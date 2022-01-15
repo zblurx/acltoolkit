@@ -169,25 +169,10 @@ class GetObjectAcl:
             username = self.options.user
         else:
             username = self.target.username
-
-        controls = [
-            *security_descriptor_control(
-                sdflags=(
-                    (
-                        SecurityInformation.OWNER_SECURITY_INFORMATION
-                        | SecurityInformation.GROUP_SECURITY_INFORMATION
-                        | SecurityInformation.DACL_SECURITY_INFORMATION
-                        | SecurityInformation.UNPROTECTED_DACL_SECURITY_INFORMATION
-                    ).value
-                )
-            ),
-            *DEFAULT_CONTROL_FLAGS,
-        ]
-
+        
         users = self.search(
             "(&(objectclass=user)(sAMAccountName=%s))" % username,
             attributes=["objectSid", "distinguishedName", "nTSecurityDescriptor", "primaryGroupId"],
-            controls=controls
         )
 
         if len(users) == 0:
