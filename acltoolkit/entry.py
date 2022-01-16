@@ -11,7 +11,7 @@ def main():
     logger.init()
 
     parser = argparse.ArgumentParser(
-        description="ACL Management tool", add_help=True
+        description="ACL abuse swiss-knife", add_help=True
     )
 
     parser.add_argument(

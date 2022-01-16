@@ -20,7 +20,7 @@ python3 -m pipx pip install .
 $ acltoolkit -h
 usage: acltoolkit [-h] [-debug] [-hashes LMHASH:NTHASH] [-no-pass] [-k] [-dc-ip ip address] [-scheme ldap scheme] target {get-objectacl,set-objectowner,give-genericall} ...
 
-ACL Management tool
+ACL abuse swiss-knife
 
 positional arguments:
   target                [[domain/]username[:password]@]<target name or address>
