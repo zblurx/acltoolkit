@@ -47,3 +47,8 @@ authentication:
   -hashes LMHASH:NTHASH
                         NTLM hashes, format is LMHASH:NTHASH
 ```
+
+## TODO
+
+- show adminCount attribute
+- implement ForcePasswordChange
