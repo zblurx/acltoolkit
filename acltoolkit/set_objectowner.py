@@ -1,8 +1,9 @@
 import argparse
 import logging
 
+import ldap3
 from ldap3.protocol.microsoft import security_descriptor_control
-from impacket.ldap.ldaptypes import SR_SECURITY_DESCRIPTOR
+from impacket.ldap.ldaptypes import SR_SECURITY_DESCRIPTOR, LDAP_SID
 
 from acltoolkit.ldap import LDAPConnection, LDAPEntry, SecurityInformation, DEFAULT_CONTROL_FLAGS
 from acltoolkit.target import Target
@@ -15,8 +16,7 @@ class SetObjectOwner:
         self.target = Target(options)
         self._domain = None
         self._object = None
-        self._user_sids = None
-        self._sid_map = {}
+        self._owner = None
 
         self.ldap_connection = None
 
@@ -29,27 +29,29 @@ class SetObjectOwner:
     def search(self, *args, **kwargs) -> 'list["LDAPEntry"]':
         return self.ldap_connection.search(*args, **kwargs)
 
+    def write(self, *args, **kwargs) -> int:
+        return self.ldap_connection.write(*args, **kwargs)
+
     def run(self):
         self.connect()
-
+        
         logging.info("Find target object: %s" % self.object.get("distinguishedName"))
-        
+        logging.info("New owner will be: %s" % self.owner.get("distinguishedName"))
+        self.security_descriptor["OwnerSid"] = LDAP_SID(self.owner.get_raw("objectSid"))
+        ret = self.write(self.object.get("distinguishedName"),  {'nTSecurityDescriptor':[ldap3.MODIFY_REPLACE, [self.security_descriptor.getData()]]})
 
-    def sid_lookup(self, sid: str) -> str:
-        if sid in WELL_KNOWN_SIDS:
-            return WELL_KNOWN_SIDS[sid]
-    
-        results = self.search(
-            "(&(objectSid=%s)(|(objectClass=group)(objectClass=user)))" % sid,
-            attributes=["name", "objectSid"],
-        )
+        if ret['result'] == 0:
+            logging.info("Object Owner modified successfully !")
+        else :
+            if ret['result'] == 50:
+                raise Exception('Could not modify object, the server reports insufficient rights: %s', ret['message'])
+            elif ret['result'] == 19:
+                raise Exception('Could not modify object, the server reports a constrained violation: %s', ret['message'])
+            else:
+                raise Exception('The server returned an error: %s', ret['message'])
 
-        if len(results) == 0:
-            return sid
-        
-        result = results[0]
+        # self.write()
 
-        return '%s\%s' % (self.domain.get("name"),result.get("name"))
 
     @property
     def domain(self) -> str:
@@ -88,29 +90,11 @@ class SetObjectOwner:
         if self._object is not None:
             return self._object
 
-        if self.options.target_sid is not None:
-            object_sid = self.options.target_sid
-        else:
-            object_sid = self.target.username
-
-        controls = [
-            *security_descriptor_control(
-                sdflags=(
-                    (
-                        SecurityInformation.OWNER_SECURITY_INFORMATION
-                        | SecurityInformation.GROUP_SECURITY_INFORMATION
-                        | SecurityInformation.DACL_SECURITY_INFORMATION
-                        | SecurityInformation.UNPROTECTED_DACL_SECURITY_INFORMATION
-                    ).value
-                )
-            ),
-            *DEFAULT_CONTROL_FLAGS,
-        ]
+        object_sid = self.options.target_sid
 
         objects = self.search(
             "(objectSid=%s)" % object_sid,
-            attributes=["distinguishedName", "nTSecurityDescriptor", "primaryGroupId"],
-            controls=controls
+            attributes=["distinguishedName", "nTSecurityDescriptor", "primaryGroupId"]
         )
 
         if len(objects) == 0:
@@ -119,6 +103,28 @@ class SetObjectOwner:
         self._object = objects[0]
 
         return self._object
+
+    @property
+    def owner(self) -> LDAPEntry:
+        if self._owner is not None:
+            return self._owner
+        
+        if self.options.owner_sid is not None:
+            owner = self.search(
+                "(objectSid=%s)" % self.options.owner_sid,
+                attributes=["distinguishedName", "objectSid"]
+            )
+            if len(owner) == 0:
+                raise Exception("Could not find owner")
+        else:
+            owner = self.search(
+                "(sAMAccountName=%s)"
+                % self.target.username,
+                attributes=["distinguishedName","objectSid"],
+            )
+        self._owner = owner[0]
+        return self._owner
+
     
     @property
     def security_descriptor(self) -> SR_SECURITY_DESCRIPTOR:

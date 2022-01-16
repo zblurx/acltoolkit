@@ -167,6 +167,24 @@ class LDAPConnection:
             )
         )
         return entries
+
+    def write(
+        self,
+        target_dn: str,
+        changes: dict,
+        controls = security_descriptor_control(
+                sdflags=(
+                    (
+                        SecurityInformation.OWNER_SECURITY_INFORMATION
+                        | SecurityInformation.GROUP_SECURITY_INFORMATION
+                        | SecurityInformation.DACL_SECURITY_INFORMATION
+                        | SecurityInformation.UNPROTECTED_DACL_SECURITY_INFORMATION
+                    ).value
+                )
+            ),
+        ):
+        self.ldap_session.modify(dn=target_dn, changes=changes,controls=controls)
+        return self.ldap_session.result
     
     def _set_root_dse(self) -> None:
         dses = self.search(
