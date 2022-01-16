@@ -7,6 +7,7 @@ setup(
     author="zblurx",
     url="https://github.com/zblurx/acltoolkit",
     long_description="README.md",
+    license="MIT",
     packages=["acltoolkit"],
     install_requires=[
         "asn1crypto",
