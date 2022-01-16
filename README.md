@@ -20,19 +20,19 @@ python3 -m pipx pip install .
 
 ## Usage
 
-```bash
-$ acltoolkit -h
-usage: acltoolkit [-h] [-debug] [-hashes LMHASH:NTHASH] [-no-pass] [-k] [-dc-ip ip address] [-scheme ldap scheme] target {get-objectacl,set-objectowner,give-genericall} ...
+```$ acltoolkit -h
+usage: acltoolkit [-h] [-debug] [-hashes LMHASH:NTHASH] [-no-pass] [-k] [-dc-ip ip address] [-scheme ldap scheme] target {get-objectacl,set-objectowner,give-genericall,add-groupmember} ...
 
 ACL abuse swiss-knife
 
 positional arguments:
   target                [[domain/]username[:password]@]<target name or address>
-  {get-objectacl,set-objectowner,give-genericall}
+  {get-objectacl,set-objectowner,give-genericall,add-groupmember}
                         Action
     get-objectacl       Get Object ACL
     set-objectowner     Modify Object Owner
     give-genericall     Grant an object GENERIC ALL on a targeted object
+    add-groupmember     Add Member to Group
 
 optional arguments:
   -h, --help            show this help message and exit
