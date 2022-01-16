@@ -6,6 +6,7 @@ from impacket.examples import logger
 from acltoolkit.get_objectacl import get_objectacl
 from acltoolkit.set_objectowner import set_objectowner
 from acltoolkit.give_genericall import give_genericall
+from acltoolkit.add_groupmember import add_groupmember
 
 def main():
     logger.init()
@@ -113,6 +114,27 @@ def main():
         )
     )
 
+    add_groupmember_parser = subparsers.add_parser("add-groupmember", help="Add Member to Group")
+
+    add_groupmember_parser.add_argument(
+        "-user",
+        action="store",
+        metavar="user",
+        help=(
+            "User added to a group"
+        ),
+    )
+
+    add_groupmember_parser.add_argument(
+        "-group",
+        action="store",
+        metavar="group",
+        help=(
+            "Group where the user will be added"
+        ),
+        required=True
+    )
+
     options = parser.parse_args()
 
     if options.debug is True:
@@ -126,6 +148,8 @@ def main():
         set_objectowner(options)
     elif options.action == "give-genericall":
         give_genericall(options)
+    elif options.action == "add-groupmember":
+        add_groupmember(options)
     else:
         raise Exception("Action not implemented: %s" % options.action)
 
