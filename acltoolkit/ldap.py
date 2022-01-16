@@ -30,6 +30,8 @@ class LDAPEntry:
     def __init__(self, search_entry):
         attributes = dict()
         for attr, value in search_entry["raw_attributes"].items():
+            if len(value) == 0:
+                continue
             vals = (
                 list(map(lambda x: bytes(x), value))
                 if len(value) > 1

@@ -8,7 +8,7 @@ from impacket.ldap.ldaptypes import SR_SECURITY_DESCRIPTOR
 from acltoolkit.ldap import LDAPConnection, LDAPEntry, SecurityInformation, DEFAULT_CONTROL_FLAGS
 from acltoolkit.target import Target
 from acltoolkit.formatting import pretty_print
-from acltoolkit.constants import ACTIVE_DIRECTORY_RIGHTS, WELL_KNOWN_SIDS, EXTENDED_RIGHTS_MAP
+from acltoolkit.constants import ACTIVE_DIRECTORY_RIGHTS, WELL_KNOWN_SIDS, EXTENDED_RIGHTS_MAP, JUICY_ADRIGHTS
 
 class GetObjectAcl:
     def __init__(self, options: argparse.Namespace):
@@ -16,11 +16,12 @@ class GetObjectAcl:
 
         self.target = Target(options)
         self._domain = None
-        self._user = None
+        self._object = None
         self._primary_group = None
-        self._user_sids = None
+        self._sids = None
         self._groups = None
         self._sid_map = {}
+        self._members = None
 
         self.ldap_connection = None
 
@@ -36,20 +37,30 @@ class GetObjectAcl:
     def run(self):
         self.connect()
 
-        output = dict()
-
-        user_info = dict()
-        user_info["Sid"] = format_sid(self.user.get_raw("objectSid"))
-        user_info["Name"] = self.sid_lookup(user_info["Sid"])
-        user_info["DN"] = self.user.get("distinguishedName")
+        object_info = dict()
+        object_info["Sid"] = format_sid(self.object.get_raw("objectSid"))
+        object_info["Name"] = self.sid_lookup(object_info["Sid"])
+        object_info["DN"] = self.object.get("distinguishedName")
+        object_info["Class"] = [i.decode() for i in self.object.get_raw("objectClass")]
         
+        if b'group' in self.object.get_raw("objectClass"):
+            members = list()
+            for member in self.members:
+                member_output = dict()
+                member_output['Sid'] = format_sid(member.get_raw("objectSid"))
+                member_output['Name'] = member.get('name')
+                member_output['DN'] = member.get('distinguishedName')
 
-        primary_group_info = dict()
-        primary_group_info["Sid"] = format_sid(self.primary_group.get_raw("objectSid"))
-        primary_group_info["Name"] = self.sid_lookup(primary_group_info["Sid"])
-        primary_group_info["DN"] = self.primary_group.get("distinguishedName")
+                members.append(member_output)
+            object_info["Members"] = members
         
-        user_info["PrimaryGroup"] = primary_group_info
+        if b'user' in self.object.get_raw("objectClass"):
+            primary_group_info = dict()
+            primary_group_info["Sid"] = format_sid(self.primary_group.get_raw("objectSid"))
+            primary_group_info["Name"] = self.sid_lookup(primary_group_info["Sid"])
+            primary_group_info["DN"] = self.primary_group.get("distinguishedName")
+        
+            object_info["PrimaryGroup"] = primary_group_info
 
         groups = list()
 
@@ -61,19 +72,19 @@ class GetObjectAcl:
 
             groups.append(group_output)
 
-        user_info["Groups"] = groups
+        object_info["Groups"] = groups
 
         owner_info = dict()
         owner_info["Sid"] = self.security_descriptor["OwnerSid"].formatCanonical()
         owner_info["Name"] = self.sid_lookup(owner_info["Sid"])
 
-        user_info["Owner"] = owner_info
+        object_info["Owner"] = owner_info
 
         ownergroup_info = dict()
         ownergroup_info["Sid"] = self.security_descriptor["GroupSid"].formatCanonical()
         ownergroup_info["Name"] = self.sid_lookup(ownergroup_info["Sid"])
 
-        user_info["OwnerGroup"] = ownergroup_info
+        object_info["OwnerGroup"] = ownergroup_info
 
         dacl = list()
         for ace in self.security_descriptor['Dacl'].aces:
@@ -89,13 +100,14 @@ class GetObjectAcl:
                 ace_output['ObjectAceType'] = EXTENDED_RIGHTS_MAP[ace_output['ObjectAceType']]
             except KeyError:
                 pass
-            dacl.append(ace_output)
+            if self.options.all or any(juicy_adright in ace_output['ADRights'] for juicy_adright in JUICY_ADRIGHTS):
+                dacl.append(ace_output)
 
-        user_info['Dacl'] = dacl
+        if len(dacl) > 0:
+            # Is this even possible ?!
+            object_info['Dacl'] = dacl
 
-        output["User"] = user_info
-
-        pretty_print(output)
+        pretty_print(object_info)
 
     def ace_access_mask_lookup(self, value) -> list :
         try:
@@ -161,33 +173,47 @@ class GetObjectAcl:
         return self._domain
 
     @property
-    def user(self) -> LDAPEntry:
-        if self._user is not None:
-            return self._user
+    def object(self) -> LDAPEntry:
+        if self._object is not None:
+            return self._object
 
-        if self.options.user is not None:
-            username = self.options.user
+        if self.options.object is not None:
+            objectname = self.options.object
         else:
-            username = self.target.username
+            objectname = self.target.username
         
-        users = self.search(
-            "(&(objectclass=user)(sAMAccountName=%s))" % username,
-            attributes=["objectSid", "distinguishedName", "nTSecurityDescriptor", "primaryGroupId"],
+        objects = self.search(
+            "(|(sAMAccountName=%(o)s)(name=%(o)s)(objectSid=%(o)s)(distinguishedName=%(o)s))" % {'o': objectname} ,
+            attributes=["objectSid", "distinguishedName", "nTSecurityDescriptor", "primaryGroupId", "member", "objectClass"],
         )
 
-        if len(users) == 0:
-            raise Exception("Could not find user with account name: %s" % username)
+        if len(objects) == 0:
+            raise Exception("Could not find such object: %s" % objectname)
 
-        self._user = users[0]
+        self._object = objects[0]
 
-        return self._user
+        return self._object
+
+    @property
+    def members(self) -> 'list["LDAPEntry"]':
+        if self._members is not None:
+            return self._members
+        members = list()
+        for member_dn in self.object.get_raw("member"):
+            members.append(
+                self.search("(distinguishedName=%s)" % member_dn.decode(),
+                attributes=["objectSid","name","distinguishedName"])[0]
+            )
+
+        self._members = members
+        return self._members
 
     @property
     def groups(self) -> 'list["LDAPEntry"]':
         if self._groups is not None:
             return self._groups
         self._groups = self.search(
-            "(member:1.2.840.113556.1.4.1941:=%s)" % self.user.get("distinguishedName"),
+            "(member:1.2.840.113556.1.4.1941:=%s)" % self.object.get("distinguishedName"),
             attributes=["objectSid","name","distinguishedName"],
         )
         return self._groups
@@ -197,7 +223,7 @@ class GetObjectAcl:
         if self._primary_group is not None:
             return self._primary_group
 
-        primary_group = self.search('(objectSid=%s-%s)' % (format_sid(self.domain.get_raw("objectSid")), self.user.get("primaryGroupID")), attributes=["objectSid","name", "distinguishedName"])  
+        primary_group = self.search('(objectSid=%s-%s)' % (format_sid(self.domain.get_raw("objectSid")), self.object.get("primaryGroupID")), attributes=["objectSid","name", "distinguishedName"])  
         self._primary_group = primary_group[0]
 
         return self._primary_group
@@ -211,7 +237,7 @@ class GetObjectAcl:
         self._user_sids = list(
             map(
                 lambda entry: format_sid(entry.get_raw("objectSid")),
-                [*self.groups, self.user],
+                [*self.groups, self.object],
             )
         )
 
@@ -223,7 +249,7 @@ class GetObjectAcl:
             return self._security_descriptor
 
         self._security_descriptor = SR_SECURITY_DESCRIPTOR()
-        self._security_descriptor.fromString(self.user.get_raw("nTSecurityDescriptor"))
+        self._security_descriptor.fromString(self.object.get_raw("nTSecurityDescriptor"))
 
         return self.security_descriptor
 

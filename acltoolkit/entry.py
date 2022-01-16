@@ -64,11 +64,19 @@ def main():
     get_objectacl_parser = subparsers.add_parser("get-objectacl", help="Get Object ACL")
 
     get_objectacl_parser.add_argument(
-        "-user",
+        "-object",
         action="store",
-        metavar="user",
+        metavar="object",
         help=(
-            "Dump ACL for <user>"
+            "Dump ACL for <object>. Parameter can be a sAMAccountName, a name, a DN or an objectSid"
+        ),
+    )
+
+    get_objectacl_parser.add_argument(
+        "-all",
+        action="store_true",
+        help=(
+            "List every ACE of the object, even the less-interesting ones"
         ),
     )
 

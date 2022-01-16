@@ -91,6 +91,16 @@ ACTIVE_DIRECTORY_RIGHTS = {
     0x1:'CREATE_CHILD',
 }
 
+JUICY_ADRIGHTS = [
+    'GENERIC_ALL',
+    'WRITE_OWNER',
+    'WRITE_DACL',
+    'GENERIC_WRITE',
+    'EXTENDED_RIGHTS',
+    'SELF',
+    'ACCESS_SYSTEM_SECURITY',
+]
+
 # Retrieved from Windows 2022 server via LDAP (CN=Extended-Rights,CN=Configuration,DC=...)
 EXTENDED_RIGHTS_MAP = {
     "{ab721a52-1e2f-11d0-9819-00aa0040529b}": "Domain-Administer-Serve",
