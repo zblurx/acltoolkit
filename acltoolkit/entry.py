@@ -5,6 +5,7 @@ from impacket.examples import logger
 
 from acltoolkit.get_objectacl import get_objectacl
 from acltoolkit.set_objectowner import set_objectowner
+from acltoolkit.give_genericall import give_genericall
 
 def main():
     logger.init()
@@ -91,6 +92,27 @@ def main():
         )
     )
 
+    give_genericall_parser = subparsers.add_parser("give-genericall", help="Grant an object GENERIC ALL on a targeted object")
+
+    give_genericall_parser.add_argument(
+        "-target-sid",
+        action="store",
+        metavar="target_sid",
+        help=(
+            "Object Sid targeted"
+        ),
+        required=True
+    )
+
+    give_genericall_parser.add_argument(
+        "-granted-sid",
+        action="store",
+        metavar="owner_sid",
+        help=(
+            "Object Sid granted GENERIC_ALL"
+        )
+    )
+
     options = parser.parse_args()
 
     if options.debug is True:
@@ -102,8 +124,10 @@ def main():
         get_objectacl(options)
     elif options.action == "set-objectowner":
         set_objectowner(options)
+    elif options.action == "give-genericall":
+        give_genericall(options)
     else:
-        raise NotExistingActionError("Action not implemented: %s" % options.action)
+        raise Exception("Action not implemented: %s" % options.action)
 
 if __name__ == "__main__":
     main()

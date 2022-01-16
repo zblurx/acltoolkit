@@ -2,27 +2,26 @@ import argparse
 import logging
 
 import ldap3
-from impacket.ldap.ldaptypes import SR_SECURITY_DESCRIPTOR, LDAP_SID
+from impacket.ldap.ldaptypes import SR_SECURITY_DESCRIPTOR, LDAP_SID, ACE, ACCESS_ALLOWED_ACE, ACCESS_MASK
 
 from acltoolkit.ldap import LDAPConnection, LDAPEntry
 from acltoolkit.target import Target
 
-class SetObjectOwner:
+class GiveGenericAll:
     def __init__(self, options: argparse.Namespace):
         self.options = options
-
-        self.target = Target(options)
-        self._object = None
-        self._owner = None
-
         self.ldap_connection = None
 
+        self.target = Target(options)
+
         self._security_descriptor = None
+        self._object = None
+        self._granted = None
 
     def connect(self):
         self.ldap_connection = LDAPConnection(self.options.scheme, self.target)
         self.ldap_connection.connect()
-
+        
     def search(self, *args, **kwargs) -> 'list["LDAPEntry"]':
         return self.ldap_connection.search(*args, **kwargs)
 
@@ -31,14 +30,15 @@ class SetObjectOwner:
 
     def run(self):
         self.connect()
-        
+
         logging.info("Find target object: %s" % self.object.get("distinguishedName"))
-        logging.info("New owner will be: %s" % self.owner.get("distinguishedName"))
-        self.security_descriptor["OwnerSid"] = LDAP_SID(self.owner.get_raw("objectSid"))
+        logging.info("Granted object will be: %s" % self.granted.get("distinguishedName"))
+        self.security_descriptor["Dacl"].aces.append(self.create_allow_ace(self.granted.get_raw("objectSid")))
+
         ret = self.write(self.object.get("distinguishedName"),  {'nTSecurityDescriptor':[ldap3.MODIFY_REPLACE, [self.security_descriptor.getData()]]})
 
         if ret['result'] == 0:
-            logging.info("Object Owner modified successfully !")
+            logging.info("Granted GENERIC_ALL successfully !")
         else :
             if ret['result'] == 50:
                 raise Exception('Could not modify object, the server reports insufficient rights: %s', ret['message'])
@@ -67,25 +67,25 @@ class SetObjectOwner:
         return self._object
 
     @property
-    def owner(self) -> LDAPEntry:
-        if self._owner is not None:
-            return self._owner
+    def granted(self) -> LDAPEntry:
+        if self._granted is not None:
+            return self._granted
         
-        if self.options.owner_sid is not None:
-            owner = self.search(
-                "(objectSid=%s)" % self.options.owner_sid,
+        if self.options.granted_sid is not None:
+            granted = self.search(
+                "(objectSid=%s)" % self.options.granted_sid,
                 attributes=["distinguishedName", "objectSid"]
             )
-            if len(owner) == 0:
-                raise Exception("Could not find owner")
+            if len(granted) == 0:
+                raise Exception("Could not find granted user")
         else:
-            owner = self.search(
+            granted = self.search(
                 "(sAMAccountName=%s)"
                 % self.target.username,
                 attributes=["distinguishedName","objectSid"],
             )
-        self._owner = owner[0]
-        return self._owner
+        self._granted = granted[0]
+        return self._granted
 
     
     @property
@@ -98,6 +98,17 @@ class SetObjectOwner:
 
         return self.security_descriptor
 
-def set_objectowner(options: argparse.Namespace):
-    g = SetObjectOwner(options)
+    def create_allow_ace(self, sid: bytes):    
+        nace = ACE()
+        nace['AceType'] = ACCESS_ALLOWED_ACE.ACE_TYPE
+        nace['AceFlags'] = 0x00
+        acedata = ACCESS_ALLOWED_ACE()
+        acedata['Mask'] = ACCESS_MASK()
+        acedata['Mask']['Mask'] = 983551 # Generic All
+        acedata['Sid'] = LDAP_SID(sid)
+        nace['Ace'] = acedata
+        return nace
+
+def give_genericall(options: argparse.Namespace):
+    g = GiveGenericAll(options)
     g.run()
