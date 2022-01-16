@@ -5,12 +5,16 @@ ACL Toolkit is an ACL abuse swiss-knife.
 ## Installation
 
 ```bash
+git clone https://github.com/zblurx/acltoolkit.git
+cd acltoolkit
 pip install .
 ```
 
-ou
+or
 
 ```bash
+git clone https://github.com/zblurx/acltoolkit.git
+cd acltoolkit
 python3 -m pipx pip install .
 ```
 
