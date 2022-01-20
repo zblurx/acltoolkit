@@ -6,6 +6,7 @@ from impacket.examples import logger
 from acltoolkit.get_objectacl import get_objectacl
 from acltoolkit.set_objectowner import set_objectowner
 from acltoolkit.give_genericall import give_genericall
+from acltoolkit.give_dcsync import give_dcsync
 from acltoolkit.add_groupmember import add_groupmember
 
 def main():
@@ -122,6 +123,17 @@ def main():
         )
     )
 
+    give_dcsync_parser = subparsers.add_parser("give-dcsync", help="Grant an object DCSync capabilities on the domain")
+
+    give_dcsync_parser.add_argument(
+        "-granted-sid",
+        action="store",
+        metavar="owner_sid",
+        help=(
+            "Object Sid granted DCSync capabilities"
+        )
+    )
+
     add_groupmember_parser = subparsers.add_parser("add-groupmember", help="Add Member to Group")
 
     add_groupmember_parser.add_argument(
@@ -156,6 +168,8 @@ def main():
         set_objectowner(options)
     elif options.action == "give-genericall":
         give_genericall(options)
+    elif options.action == "give-dcsync":
+        give_dcsync(options)
     elif options.action == "add-groupmember":
         add_groupmember(options)
     else:
