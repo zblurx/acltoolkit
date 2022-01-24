@@ -15,6 +15,7 @@ class GiveDCSync:
 
         self.target = Target(options)
 
+        self._object = None
         self._security_descriptor = None
         self._domain = None
         self._granted = None
