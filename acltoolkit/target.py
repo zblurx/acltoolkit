@@ -27,6 +27,9 @@ class Target:
         else:
             lmhash = nthash = ''
         
+        if options.dc_ip is None:
+            options.dc_ip = remote_name
+
         self.domain = domain
         self.username = username[:20]
         self.password = password
