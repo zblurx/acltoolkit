@@ -55,6 +55,7 @@ class GetObjectAcl:
             object_info["Members"] = members
         
         if b'user' in self.object.get_raw("objectClass"):
+            object_info["adminCount"] = True if self.object.get("adminCount") else False
             primary_group_info = dict()
             primary_group_info["Sid"] = format_sid(self.primary_group.get_raw("objectSid"))
             primary_group_info["Name"] = self.sid_lookup(primary_group_info["Sid"])
@@ -184,7 +185,7 @@ class GetObjectAcl:
         
         objects = self.search(
             "(|(sAMAccountName=%(o)s)(name=%(o)s)(objectSid=%(o)s)(distinguishedName=%(o)s))" % {'o': objectname} ,
-            attributes=["objectSid", "distinguishedName", "nTSecurityDescriptor", "primaryGroupId", "member", "objectClass"],
+            attributes=["objectSid", "distinguishedName", "nTSecurityDescriptor", "primaryGroupId", "member", "objectClass", "adminCount"],
         )
 
         if len(objects) == 0:
