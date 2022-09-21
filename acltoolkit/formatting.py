@@ -1,7 +1,7 @@
 def pretty_print(d, indent=0, padding=20):
     if isinstance(d, dict):
         for key, value in d.items():
-            if isinstance(value, str) or isinstance(value, int):
+            if isinstance(value, str) or isinstance(value, int) or value is None:
                 print(("  " * indent + str(key)).ljust(padding, " ") + ": %s" % value)
             elif isinstance(value, dict):
                 print()
@@ -31,6 +31,8 @@ def pretty_print(d, indent=0, padding=20):
                 for v in value:
                     pretty_print(v, indent=indent + 1)
             else:
+                print(key)
+                print(value)
                 # Shouldn't end up here
                 raise NotImplementedError("Not implemented: %s" % type(value))
     else:
