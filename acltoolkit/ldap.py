@@ -295,7 +295,7 @@ class LDAPConnection:
             sessionKey = TGT['sessionKey']
 
         if TGS is None:
-            serverName = Principal('ldap/%s' % self._dstHost, type=constants.PrincipalNameType.NT_SRV_INST.value)
+            serverName = Principal('ldap/%s' % connection.server.host, type=constants.PrincipalNameType.NT_SRV_INST.value)
             tgs, cipher, oldSessionKey, sessionKey = getKerberosTGS(serverName, domain, kdcHost, tgt, cipher,
                                                                     sessionKey)
         else:
