@@ -3,6 +3,8 @@ def pretty_print(d, indent=0, padding=20):
         for key, value in d.items():
             if isinstance(value, str) or isinstance(value, int) or value is None:
                 print(("  " * indent + str(key)).ljust(padding, " ") + ": %s" % value)
+            elif isinstance(value, bytes) :
+                print(("  " * indent + str(key)).ljust(padding, " ") + ": %s" % value.decode())
             elif isinstance(value, dict):
                 print()
                 print("  " * indent + str(key))

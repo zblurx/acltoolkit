@@ -4,6 +4,7 @@ import logging
 from impacket.examples import logger
 
 from acltoolkit.get_objectacl import get_objectacl
+from acltoolkit.set_logon_script import set_logonscript
 from acltoolkit.set_objectowner import set_objectowner
 from acltoolkit.give_genericall import give_genericall
 from acltoolkit.give_dcsync import give_dcsync
@@ -155,6 +156,38 @@ def main():
         required=True
     )
 
+    set_logonscript_parser = subparsers.add_parser("set-logonscript", help="Change Logon Sript of User")
+
+    set_logonscript_parser.add_argument(
+        "-target-sid",
+        action="store",
+        metavar="target_sid",
+        help=(
+            "Object Sid of targeted user"
+        ),
+        required=True
+    )
+
+    set_logonscript_parser.add_argument(
+        "-script-path",
+        action="store",
+        metavar="script_path",
+        help=(
+            "Script path to set for the targeted user"
+        ),
+        required=True
+    )
+
+    set_logonscript_parser.add_argument(
+        "-logonscript-type",
+        action="store",
+        metavar="logonscript_type",
+        help=(
+            "Logon Script variable to change (default is scriptPath)"
+        ),
+        choices=['scriptPath', 'msTSInitialProgram']
+    )
+
     options = parser.parse_args()
 
     if options.debug is True:
@@ -172,6 +205,8 @@ def main():
         give_dcsync(options)
     elif options.action == "add-groupmember":
         add_groupmember(options)
+    elif options.action == "set-logonscript":
+        set_logonscript(options)
     else:
         raise Exception("Action not implemented: %s" % options.action)
 
