@@ -97,6 +97,7 @@ class LDAPConnection:
                     domain=target.domain,
                     lmhash=target.lmhash,
                     nthash=target.nthash,
+                    remote_name=target.remote_name,
                     kdcHost=target.dc_ip,
                     )
             else:
@@ -204,7 +205,7 @@ class LDAPConnection:
         self._default_path = dse.get("defaultNamingContext")
         self._configuration_path = dse.get("configurationNamingContext")
 
-    def kerberosLogin(self, connection, user, password, domain='', lmhash='', nthash='', aesKey='', kdcHost=None, TGT=None,
+    def kerberosLogin(self, connection, user, password, domain='', lmhash='', nthash='', aesKey='', remote_name='', kdcHost=None, TGT=None,
                       TGS=None, useCache=True):
         """
         logins into the target system explicitly using Kerberos. Hashes are used if RC4_HMAC is supported.
@@ -295,7 +296,8 @@ class LDAPConnection:
             sessionKey = TGT['sessionKey']
 
         if TGS is None:
-            serverName = Principal('ldap/%s' % self._dstHost, type=constants.PrincipalNameType.NT_SRV_INST.value)
+            
+            serverName = Principal('ldap/%s' % remote_name, type=constants.PrincipalNameType.NT_SRV_INST.value)
             tgs, cipher, oldSessionKey, sessionKey = getKerberosTGS(serverName, domain, kdcHost, tgt, cipher,
                                                                     sessionKey)
         else:
