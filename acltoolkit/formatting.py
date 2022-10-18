@@ -8,14 +8,18 @@ def pretty_print(d, indent=0, padding=20):
                 print("  " * indent + str(key))
                 pretty_print(value, indent=indent + 1)
             elif isinstance(value, list):
-                if all(isinstance(item,str) for item in value):
+                if len(value) == 0:
+                    print()
+                    print(("  " * indent + str(key)).ljust(padding, " ") + ": None" )
+                elif all(isinstance(item,str) for item in value):
                     print(("  " * indent + str(key)).ljust(padding, " ") + ": %s" % ", ".join(value))
                 elif len(value) > 0 and isinstance(value[0], dict):
                     print()
                     print("  " * indent + str(key))
-                    for v in value:
+                    for i, v in enumerate(value):
+                        if i>0 :
+                            print()
                         pretty_print(v, indent=indent + 1)
-                        print()
                 else:
                     print(
                         ("  " * indent + str(key)).ljust(padding, " ")
