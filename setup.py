@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name="acltoolkit",
-    version="0.0.1",
+    version="0.1.0",
     author="zblurx",
     url="https://github.com/zblurx/acltoolkit",
     long_description="README.md",
