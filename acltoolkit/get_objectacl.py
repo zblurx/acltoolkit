@@ -56,6 +56,13 @@ class GetObjectAcl:
         
         if b'user' in self.object.get_raw("objectClass"):
             object_info["adminCount"] = True if self.object.get("adminCount") else False
+            
+            logon_script = dict()
+            logon_script["scriptPath"] = self.object.get_raw("scriptPath")
+            logon_script["msTSInitialProgram"] = self.object.get_raw("msTSInitialProgram")
+            
+            object_info["Logon Script"] = logon_script
+
             primary_group_info = dict()
             primary_group_info["Sid"] = format_sid(self.primary_group.get_raw("objectSid"))
             primary_group_info["Name"] = self.sid_lookup(primary_group_info["Sid"])
@@ -185,7 +192,7 @@ class GetObjectAcl:
         
         objects = self.search(
             "(|(sAMAccountName=%(o)s)(name=%(o)s)(objectSid=%(o)s)(distinguishedName=%(o)s))" % {'o': objectname} ,
-            attributes=["objectSid", "distinguishedName", "nTSecurityDescriptor", "primaryGroupId", "member", "objectClass", "adminCount"],
+            attributes=["objectSid", "distinguishedName", "nTSecurityDescriptor", "primaryGroupId", "member", "objectClass", "adminCount", "scriptPath", "msTSInitialProgram"],
         )
 
         if len(objects) == 0:
@@ -199,14 +206,8 @@ class GetObjectAcl:
     def members(self) -> 'list["LDAPEntry"]':
         if self._members is not None:
             return self._members
-        members = list()
-        for member_dn in self.object.get_raw("member"):
-            members.append(
-                self.search("(distinguishedName=%s)" % member_dn.decode(),
-                attributes=["objectSid","name","distinguishedName"])[0]
-            )
-
-        self._members = members
+        self._members = self.search("(|(memberOf=%s)(primaryGroupID=%s))" % (self.object.get("distinguishedName"), format_sid(self.object.get_raw("objectSid")).split('-')[-1]),
+            attributes=["objectSid","name","distinguishedName"])
         return self._members
 
     @property
