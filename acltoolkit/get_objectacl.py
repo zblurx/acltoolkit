@@ -106,6 +106,7 @@ class GetObjectAcl:
             try:
                 ace_output['ObjectAceType'] = format_uuid_le(ace['Ace']['ObjectType']) if ace['Ace']['ObjectType'] else '{00000000-0000-0000-0000-000000000000}'
                 ace_output['ObjectAceType'] = EXTENDED_RIGHTS_MAP[ace_output['ObjectAceType']]
+                ace_output['InheritedObjectType'] = format_uuid_le(ace['Ace']['InheritedObjectType'])
             except KeyError:
                 pass
             if self.options.all or any(juicy_adright in ace_output['ADRights'] for juicy_adright in JUICY_ADRIGHTS):

