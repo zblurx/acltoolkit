@@ -1,6 +1,20 @@
 # acltoolkit
 
-ACL Toolkit is an ACL abuse swiss-knife.
+`acltoolkit` is an ACL abuse swiss-army knife. It implements multiple ACL abuses. 
+
+## Table of Contents
+
+- [acltoolkit](#acltoolkit)
+  - [Table of Contents](#table-of-contents)
+  - [Installation](#installation)
+  - [Usage](#usage)
+  - [Commands](#commands)
+    - [get-objectacl](#get-objectacl)
+    - [set-objectowner](#set-objectowner)
+    - [give-genericall](#give-genericall)
+    - [give-dcsync](#give-dcsync)
+    - [add-groupmember](#add-groupmember)
+    - [set-logonscript](#set-logonscript)
 
 ## Installation
 
@@ -24,7 +38,7 @@ python3 -m pipx pip install .
 usage: acltoolkit [-h] [-debug] [-hashes LMHASH:NTHASH] [-no-pass] [-k] [-dc-ip ip address] [-scheme ldap scheme]
                   target {get-objectacl,set-objectowner,give-genericall,give-dcsync,add-groupmember,set-logonscript} ...
 
-ACL abuse swiss-knife
+ACL abuse swiss-army knife
 
 positional arguments:
   target                [[domain/]username[:password]@]<target name or address>

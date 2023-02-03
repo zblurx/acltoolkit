@@ -14,7 +14,7 @@ def main():
     logger.init()
 
     parser = argparse.ArgumentParser(
-        description="ACL abuse swiss-knife", add_help=True
+        description="ACL abuse swiss-army knife", add_help=True
     )
 
     parser.add_argument(
