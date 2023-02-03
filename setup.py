@@ -2,7 +2,7 @@ from importlib.metadata import entry_points
 from setuptools import setup
 
 setup(
-    name="acltoolkit",
+    name="acltoolkit-ad",
     version="0.2.2",
     author="zblurx",
     url="https://github.com/zblurx/acltoolkit",

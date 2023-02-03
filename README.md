@@ -19,9 +19,7 @@
 ## Installation
 
 ```bash
-git clone https://github.com/zblurx/acltoolkit.git
-cd acltoolkit
-pip install .
+pip install acltoolkit-ad
 ```
 
 or
@@ -29,7 +27,7 @@ or
 ```bash
 git clone https://github.com/zblurx/acltoolkit.git
 cd acltoolkit
-python3 -m pipx pip install .
+make
 ```
 
 ## Usage
